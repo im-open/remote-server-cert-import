@@ -1,80 +1,108 @@
-# composite-run-steps-action-template
+# Remote Server Cert Import
 
-This template can be used to quickly start a new custom composite-run-steps action repository.  Click the `Use this template` button at the top to get started.
+This action will install a certificate on a remote windows server.
 
-## Index
+## Index <!-- omit in toc -->
 
 - [Inputs](#inputs)
-- [Outputs](#outputs)
-- [Example](#example)
+- [Prerequisites](#prerequisites)
+- [Examples](#examples)
+  - [Simple](#simple)
+  - [Password Protected](#password-protected)
 - [Contributing](#contributing)
   - [Incrementing the Version](#incrementing-the-version)
 - [Code of Conduct](#code-of-conduct)
 - [License](#license)
-  
-## TODOs
-- Readme
-  - [ ] Update the Inputs section with the correct action inputs
-  - [ ] Update the Outputs section with the correct action outputs
-  - [ ] Update the Example section with the correct usage   
-- action.yml
-  - [ ] Fill in the correct name, description, inputs and outputs and implement steps
-- CODEOWNERS
-  - [ ] Update as appropriate
-- Repository Settings
-  - [ ] On the *Options* tab check the box to *Automatically delete head branches*
-  - [ ] On the *Options* tab update the repository's visibility
-  - [ ] On the *Branches* tab add a branch protection rule
-    - [ ] Check *Require pull request reviews before merging*
-    - [ ] Check *Dismiss stale pull request approvals when new commits are pushed*
-    - [ ] Check *Require review from Code Owners*
-    - [ ] Check *Include Administrators*
-  - [ ] On the *Manage Access* tab add the appropriate groups
-- About Section (accessed on the main page of the repo, click the gear icon to edit)
-  - [ ] The repo should have a short description of what it is for
-  - [ ] Add one of the following topic tags:
-    | Topic Tag       | Usage                                    |
-    | --------------- | ---------------------------------------- |
-    | az              | For actions related to Azure             |
-    | code            | For actions related to building code     |
-    | certs           | For actions related to certificates      |
-    | db              | For actions related to databases         |
-    | git             | For actions related to Git               |
-    | iis             | For actions related to IIS               |
-    | microsoft-teams | For actions related to Microsoft Teams   |
-    | svc             | For actions related to Windows Services  |
-    | jira            | For actions related to Jira              |
-    | meta            | For actions related to running workflows |
-    | pagerduty       | For actions related to PagerDuty         |
-    | test            | For actions related to testing           |
-    | tf              | For actions related to Terraform         |
-  - [ ] Add any additional topics for an action if they apply    
-    
 
 ## Inputs
-| Parameter | Is Required | Description           |
-| --------- | ----------- | --------------------- |
-| `input`   | true        | Description goes here |
 
-## Outputs
-| Output   | Description           |
-| -------- | --------------------- |
-| `output` | Description goes here |
+| Parameter              | Is Required | Description                                                                                                         |
+| ---------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `remote-server`        | true        | The fully qualified domain name or IP address of the remote server, for example "aserver.domain.com" or "127.0.0.1" |
+| `remote-user-name`     | true        | The service account user name with permissions to install the certificate                                           |
+| `remote-user-password` | true        | The service account user password with permissions to install the certificate                                       |
+| `cert-path`            | true        | Import cert path, for example "./certs/cert.pfx"                                                                    |
+| `cert-store`           | true        | Cert store import location, for example "Cert:\LocalMachine\My"                                                     |
+| `cert-password`        | false       | The key value to use if the cert is locked                                                                          |
+| `is-pfx-cert`          | false       | Specifies if a cert is contains a private key, expects true or false, if true, cert-password must be specified      |
 
-## Example
+## Prerequisites
+
+The IIS website status uses Web Services for Management, [WSMan], and Windows Remote Management, [WinRM], to create remote administrative sessions. Because of this, Windows Actions Runners, `runs-on: [windows-2019]`, must be used. If the IIS server target is on a local network that is not publicly available, then specialized self-hosted runners, `runs-on: [self-hosted, windows-2019]`,  will need to be used to broker commands to the server.
+
+Inbound secure WinRm network traffic (TCP port 5986) must be allowed from the GitHub Actions Runners virtual network so that remote sessions can be received.
+
+Prep the remote IIS server to accept WinRM management calls.  In general the IIS server needs to have a [WSMan] listener that looks for incoming [WinRM] calls. Firewall exceptions need to be added for the secure WinRM TCP ports, and non-secure firewall rules should be disabled. Here is an example script that would be run on the IIS server:
+
+  ```powershell
+  $Cert = New-SelfSignedCertificate -CertstoreLocation Cert:\LocalMachine\My -DnsName <<ip-address|fqdn-host-name>>
+
+  Export-Certificate -Cert $Cert -FilePath C:\temp\<<cert-name>>
+
+  Enable-PSRemoting -SkipNetworkProfileCheck -Force
+
+  # Check for HTTP listeners
+  dir wsman:\localhost\listener
+
+  # If HTTP Listeners exist, remove them
+  Get-ChildItem WSMan:\Localhost\listener | Where -Property Keys -eq "Transport=HTTP" | Remove-Item -Recurse
+
+  # If HTTPs Listeners don't exist, add one
+  New-Item -Path WSMan:\LocalHost\Listener -Transport HTTPS -Address * -CertificateThumbPrint $Cert.Thumbprint –Force
+
+  # This allows old WinRm hosts to use port 443
+  Set-Item WSMan:\localhost\Service\EnableCompatibilityHttpsListener -Value true
+
+  # Make sure an HTTPs inbound rule is allowed
+  New-NetFirewallRule -DisplayName "Windows Remote Management (HTTPS-In)" -Name "Windows Remote Management (HTTPS-In)" -Profile Any -LocalPort 5986 -Protocol TCP
+
+  # For security reasons, you might want to disable the firewall rule for HTTP that *Enable-PSRemoting* added:
+  Disable-NetFirewallRule -DisplayName "Windows Remote Management (HTTP-In)"
+  ```
+
+  - `ip-address` or `fqdn-host-name` can be used for the `DnsName` property in the certificate creation. It should be the name that the actions runner will use to call to the IIS server.
+  - `cert-name` can be any name.  This file will used to secure the traffic between the actions runner and the IIS server
+
+## Examples
+
+### Simple
 
 ```yml
-# TODO: Fill in the correct usage
 jobs:
-  job1:
-    runs-on: ubuntu-20.04
+  import-cert-on-runner:
+    runs-on: [windows-2019]
     steps:
       - uses: actions/checkout@v2
 
-      - name: ''
-        uses: im-open/thisrepo@v1.0.0 # TODO: fix the action name
+      - name: Import Runner Cert
+        uses: im-open/remote-server-cert-importt@v1.0.0
         with:
-          input-1: ''
+          remote-server: 'remote-server.my-domain.com'
+          remote-user-name: 'cert-admin'
+          remote-user-password: '${{ secrets.remote-user-password }}'
+          cert-path: './certs/cert.cer'
+          cert-store: 'Cert:\LocalMachine\My'
+```
+
+### Password Protected
+
+```yml
+jobs:
+  import-cert-on-runner:
+    runs-on: [windows-2019]
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Import Runner Cert
+        uses: im-open/remote-server-cert-import@v1.0.0
+        with:
+          remote-server: 'remote-server.my-domain.com'
+          remote-user-name: 'cert-admin'
+          remote-user-password: '${{ secrets.remote-user-password }}'
+          cert-path: './certs/cert.pfx'
+          cert-store: 'Cert:\LocalMachine\Root'
+          cert-password: '${{ secrets.cert_password }}'
+          is-pfx-cert: true
 ```
 
 ## Contributing
@@ -103,4 +131,8 @@ This project has adopted the [im-open's Code of Conduct](https://github.com/im-o
 
 Copyright &copy; 2021, Extend Health, LLC. Code released under the [MIT license](LICENSE).
 
+<!-- Links -->
 [git-version-lite]: https://github.com/im-open/git-version-lite
+[PowerShell Remoting over HTTPS with a self-signed SSL certificate]: https://4sysops.com/archives/powershell-remoting-over-https-with-a-self-signed-ssl-certificate
+[WSMan]: https://docs.microsoft.com/en-us/windows/win32/winrm/ws-management-protocol
+[WinRM]: https://docs.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management
