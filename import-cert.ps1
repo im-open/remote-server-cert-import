@@ -31,34 +31,37 @@ $remote_cert_directory = "c:\$rand-cert-install"
 $remote_cert_path = (Join-Path -Path $remote_cert_directory -ChildPath $cert_file_name)
 
 $script = {
+    New-Item -Path $Using:remote_cert_directory -ItemType Directory -Force
+    Set-Content -Path $Using:remote_cert_path -Value $Using:cert_data -Encoding Byte
+
+    $cert_args = @{
+        FilePath          = $Using:remote_cert_path
+        CertStoreLocation = $Using:cert_store
+    }
+
     try {
-        New-Item -Path $Using:remote_cert_directory -ItemType Directory -Force
-        Set-Content -Path $Using:remote_cert_path -Value $Using:cert_data -Encoding Byte
-
-        $cert_args = @{
-            FilePath          = $Using:remote_cert_path
-            CertStoreLocation = $Using:cert_store
-        }
-
         if ($Using:is_pfx_cert) {
             $cert_args['Password'] = $Using:cert_password
-            Import-PfxCertificate @Using:cert_args
+            Import-PfxCertificate @cert_args
         }
         else {
             Import-Certificate @cert_args
         }
-        Remove-Item -Path $Using:remote_cert_directory -Force -Recurse
-
         Write-Host "Certificate Imported"
     }
-    catch {
-        Write-Error "Error Importing Cert"
-        Write-Error $_ -ErrorAction Stop
+    finally {
+        Remove-Item -Path $Using:remote_cert_directory -Force -Recurse
     }
 }
 
-Invoke-Command -ComputerName $server `
-    -Credential $credential `
-    -UseSSL `
-    -SessionOption $so `
-    -ScriptBlock $script
+try {
+    Invoke-Command -ComputerName $remote_server `
+        -Credential $credential `
+        -UseSSL `
+        -SessionOption $so `
+        -ScriptBlock $script
+}
+catch {
+    Write-Error "Error Importing Cert"
+    Write-Error $_ -ErrorAction Stop
+}
