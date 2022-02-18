@@ -1,22 +1,47 @@
-name: 'Composite Run Steps Action Template'
+name: Remote Server Cert Import
 
-description: 'Add description here'
+description: This action will install a certificate on a remote windows server.
 
 inputs:
-  input-1:
-    description: 'Add a description here'
+  remote-server:
+    description: The fully qualified domain name or IP address of the remote server, for example "aserver.domain.com" or "127.0.0.1"
     required: true
-
-outputs:
-  output-1:
-    description: 'Add description here'
-    value: '${{ steps.step_1.outputs.world }}'
+  remote-user-name:
+    description: 'The service account user name with permissions to install the certificate'
+    required: true
+  remote-user-password:
+    description: 'The service account user password with permissions to install the certificate'
+    required: true
+  cert-path:
+    description: Import cert path, for example "./certs/cert.pfx"
+    required: true
+  cert-store:
+    description: Cert store import location, for example "Cert:\LocalMachine\My"
+    required: true
+  cert-password:
+    description: The key value to use if the cert is locked
+    required: false
+    default: ''
+  is-pfx-cert:
+    description: Specifies if a cert is contains a private key, expects true or false, if true, cert-password must be specified
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
   steps:
-    - name: Step 1
-      id: step_1
-      shell: bash
+    - name: Import Cert
+      shell: Powershell
       run: |
-        echo "::set-output name=hello::world"
+        $args = @{
+            remote_server = '${{ inputs.remote-server }}'
+            remote_user_name = '${{ inputs.remote-user-name }}'
+            remote_password = ConvertTo-SecureString "${{ inputs.remote-user-password }}" -AsPlainText -Force
+            cert_path = '${{ inputs.cert-path }}'
+            cert_store = '${{ inputs.cert-store }}'
+            is_pfx_cert = $${{ inputs.is-pfx-cert }}
+        }
+        if( "${{ inputs.cert-password }}".Length -gt 0){
+          $args['cert_password'] = ConvertTo-SecureString -String "${{ inputs.cert-password }}" -AsPlainText -Force
+        }
+        ${{ github.action_path }}/import-cert.ps1 @args
