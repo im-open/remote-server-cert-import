@@ -24,7 +24,7 @@ $credential = [PSCredential]::new($remote_user_name, $remote_password)
 $so = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
 
 [Byte[]]$cert_data = Get-Content -Path $cert_path -Encoding Byte
-$cert_file_parts = $($Using:website_cert_path).Replace('/', '\').Split('\')
+$cert_file_parts = $($cert_path).Replace('/', '\').Split('\')
 $cert_file_name = $cert_file_parts[$cert_file_parts.Length - 1]
 $rand = -join ((65..90) + (97..122) | Get-Random -Count 5 | ForEach-Object { [char]$_ })
 $remote_cert_directory = "c:\$rand-cert-install"
