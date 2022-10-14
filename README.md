@@ -72,10 +72,10 @@ jobs:
   import-cert-on-runner:
     runs-on: [windows-2019]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Import Runner Cert
-        uses: im-open/remote-server-cert-importt@v1.0.0
+        uses: im-open/remote-server-cert-importt@v1.0.1
         with:
           remote-server: 'remote-server.my-domain.com'
           remote-user-name: 'cert-admin'
@@ -91,10 +91,10 @@ jobs:
   import-cert-on-runner:
     runs-on: [windows-2019]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Import Runner Cert
-        uses: im-open/remote-server-cert-import@v1.0.0
+        uses: im-open/remote-server-cert-import@v1.0.1
         with:
           remote-server: 'remote-server.my-domain.com'
           remote-user-name: 'cert-admin'
