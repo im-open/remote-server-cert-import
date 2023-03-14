@@ -60,8 +60,8 @@ Prep the remote IIS server to accept WinRM management calls.  In general the IIS
   Disable-NetFirewallRule -DisplayName "Windows Remote Management (HTTP-In)"
   ```
 
-  - `ip-address` or `fqdn-host-name` can be used for the `DnsName` property in the certificate creation. It should be the name that the actions runner will use to call to the IIS server.
-  - `cert-name` can be any name.  This file will used to secure the traffic between the actions runner and the IIS server
+- `ip-address` or `fqdn-host-name` can be used for the `DnsName` property in the certificate creation. It should be the name that the actions runner will use to call to the IIS server.
+- `cert-name` can be any name.  This file will used to secure the traffic between the actions runner and the IIS server
 
 ## Examples
 
@@ -75,7 +75,8 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Import Runner Cert
-        uses: im-open/remote-server-cert-importt@v1.0.1
+        # You may also reference the major or major.minor version
+        uses: im-open/remote-server-cert-importt@v1.0.2
         with:
           remote-server: 'remote-server.my-domain.com'
           remote-user-name: 'cert-admin'
@@ -94,7 +95,8 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Import Runner Cert
-        uses: im-open/remote-server-cert-import@v1.0.1
+        # You may also reference the major or major.minor version
+        uses: im-open/remote-server-cert-import@v1.0.2
         with:
           remote-server: 'remote-server.my-domain.com'
           remote-user-name: 'cert-admin'
@@ -142,6 +144,5 @@ Copyright &copy; 2021, Extend Health, LLC. Code released under the [MIT license]
 
 <!-- Links -->
 [git-version-lite]: https://github.com/im-open/git-version-lite
-[PowerShell Remoting over HTTPS with a self-signed SSL certificate]: https://4sysops.com/archives/powershell-remoting-over-https-with-a-self-signed-ssl-certificate
 [WSMan]: https://docs.microsoft.com/en-us/windows/win32/winrm/ws-management-protocol
 [WinRM]: https://docs.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management
