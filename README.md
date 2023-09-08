@@ -1,3 +1,7 @@
+# DEPRECATED
+
+This action was deprecated on 2023-09-08 and will no longer receive support or updates.
+
 # Remote Server Cert Import
 
 This action will install a certificate on a remote windows server.
